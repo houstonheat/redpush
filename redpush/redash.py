@@ -368,7 +368,6 @@ class Redash:
         if 'results' not in dash_id_list: # in redash 5 the api has changed, they come in the results object
             return dashboards
         for dash_id in dash_id_list['results']:
-            print('id', dash_id)
             slug = dash_id['slug']
             path_id = path_id_template.format(self.url, slug)
             dashboard = requests.get(path_id, headers=headers).json()
