@@ -13,6 +13,12 @@ To get it working you obviously need a Redash server and user with write access.
 
 It connects to the Redash server to dump the current queries and visuals there. It removes some of the fields that are not worth to be exported. (just pass the `-o` to pass the output file).
 
+Example:
+
+```
+$ redpush dump --redash-url=https://redash.example.com --api-key=xzEY3RLXQ2... -o redash.yml
+```
+
 ### push
 
 This tool is to upload the queries, visuals, and dashboards to a server. `-i` for the source file.
