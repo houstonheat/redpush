@@ -102,3 +102,4 @@ ENV/
 
 # docker-compose files
 postgres-data
+.vscode/
