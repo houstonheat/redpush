@@ -23,14 +23,14 @@ class Redash:
             you can pass the dontfilter param.
         """
         queries = []
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/queries".format(self.url)
         has_more = True
         page = 1
         while has_more:
-            response = requests.get(path, headers=headers, params={'page': page}).json()
-            queries.extend(response['results'])
-            has_more = page * response['page_size'] + 1 <= response['count']
+            response = requests.get(path, headers=headers, params={"page": page}).json()
+            queries.extend(response["results"])
+            has_more = page * response["page_size"] + 1 <= response["count"]
             page += 1
 
         if not dontfilter:
@@ -45,11 +45,13 @@ class Redash:
             server to get the visualizations
         """
 
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/queries".format(self.url)
         full_queries = []
         for query in queries:
-            response = requests.get(path + '/' + str(query['id']), headers=headers).json()
+            response = requests.get(
+                path + "/" + str(query["id"]), headers=headers
+            ).json()
             full_query = self.filter_fields_query(response)
             full_queries.append(full_query)
         return full_queries
@@ -63,7 +65,7 @@ class Redash:
             it will not be uploaded.
             The new queries list is modified on the process. So don't rely on it afterwards
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/queries".format(self.url)
 
         # we get dashboards before, as an optimization. Before we were doing it on each widget, but it is
@@ -72,65 +74,71 @@ class Redash:
         dash_list = self.Get_Dashboards()
 
         for query in new_queries:
-            if 'redpush_id' not in query:
-                print('Query without tracking id, ignored')
+            if "redpush_id" not in query:
+                print("Query without tracking id, ignored")
                 continue
 
-            redpush_id = query['redpush_id']
-            query.pop('redpush_id', None)
+            redpush_id = query["redpush_id"]
+            query.pop("redpush_id", None)
 
             old_query = self.find_by_redpush_id(old_queries, redpush_id)
             # print(old_query)
-            extra_path = ''
+            extra_path = ""
             if old_query != None:
                 # we are updating the query
-                id = old_query['id']
-                print('updating query ' + str(id), flush=True)
-                extra_path = '/' + str(id)
+                id = old_query["id"]
+                print("updating query " + str(id), flush=True)
+                extra_path = "/" + str(id)
             else:
-                print('creating new query ' + query['name'], flush=True)
+                print("creating new query " + query["name"], flush=True)
 
-            if 'options' not in query:
-                query['options'] = {}
-            query['options']['redpush_id'] = redpush_id
-            query['is_draft'] = False
-            query['is_archived'] = False
+            if "options" not in query:
+                query["options"] = {}
+            query["options"]["redpush_id"] = redpush_id
+            query["is_draft"] = False
+            query["is_archived"] = False
 
             # if a query has params, we accept subqueries with redpush_id, but we need to convert it
-            if 'parameters' in query['options']:
+            if "parameters" in query["options"]:
                 missingSubQuery = False
-                for param in query['options']['parameters']:
-                    if 'redpush_id' in param:
-                        sub_redpush_id = param['redpush_id']
-                        param.pop('redpush_id', None)
-                        sub_real_id = self.find_by_redpush_id(old_queries, sub_redpush_id)
+                for param in query["options"]["parameters"]:
+                    if "redpush_id" in param:
+                        sub_redpush_id = param["redpush_id"]
+                        param.pop("redpush_id", None)
+                        sub_real_id = self.find_by_redpush_id(
+                            old_queries, sub_redpush_id
+                        )
                         if sub_real_id == None:
-                            # The linked query it is not yet deployed, or wrong. 
-                            print('Subquery not found', sub_redpush_id)
+                            # The linked query it is not yet deployed, or wrong.
+                            print("Subquery not found", sub_redpush_id)
                             missingSubQuery = True
                             break
                         else:
-                            param['queryId'] = sub_real_id['id']
+                            param["queryId"] = sub_real_id["id"]
                 if missingSubQuery:
                     # there was a missing subquery, so we don't push this query
-                    print('Query with missing subqueries, ignored')
+                    print("Query with missing subqueries, ignored")
                     continue
 
             visualizations = None
-            if 'visualizations' in query:
-                visualizations = query['visualizations']
+            if "visualizations" in query:
+                visualizations = query["visualizations"]
                 # visualizations need to be uploaded in a diff call
-                query['visualizations'] = None
+                query["visualizations"] = None
 
-            response = requests.post(path + extra_path, headers=headers, json=query).json()
-            id = response['id']
+            response = requests.post(
+                path + extra_path, headers=headers, json=query
+            ).json()
+            id = response["id"]
             # Now we handle the visualization
             if visualizations != None:
                 for visualization in visualizations:
-                    visualization['query_id'] = id
+                    visualization["query_id"] = id
 
                     # we might have received a new copy of the dashboards from the server
-                    dash_list = self.Put_Visualization(visualization, old_query, dash_list)
+                    dash_list = self.Put_Visualization(
+                        visualization, old_query, dash_list
+                    )
             # print(response)
 
             if old_query == None:
@@ -141,7 +149,7 @@ class Redash:
             Once a query is created we need to try to query the results so redash executes it and also
             the scheduled ones get noticed.
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/query_results".format(self.url)
         requests.post(path, headers=headers, json=query)
 
@@ -151,34 +159,36 @@ class Redash:
             the ones appearing in server_queries but not in new_queries
             are archived.
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/queries".format(self.url)
 
         for query in server_queries:
 
             deleteQuery = False
-            if 'options' in query:
-                if 'redpush_id' in query['options']:
-                    redpush_id = query['options']['redpush_id']
+            if "options" in query:
+                if "redpush_id" in query["options"]:
+                    redpush_id = query["options"]["redpush_id"]
                     new_query = self.find_by_redpush_id(new_queries, redpush_id)
                     deleteQuery = new_query == None
 
                 else:
                     deleteQuery = True
-                    print('Query without tracking id, deleting…', flush=True)
+                    print("Query without tracking id, deleting…", flush=True)
                     # if query doesn't have redpush_id we will get rid of it
 
             else:
-                    deleteQuery = True
-                    print('Query without tracking id, deleting…', flush=True)
-                    # if query doesn't have redpush_id we will get rid of it
+                deleteQuery = True
+                print("Query without tracking id, deleting…", flush=True)
+                # if query doesn't have redpush_id we will get rid of it
 
             if deleteQuery:
                 # the server query isn't in the file, so we archive it
-                id = query['id']
-                print('deleting query ' + str(id), flush=True)
-                extra_path = '/' + str(id)
-                response = requests.delete(path + extra_path, headers=headers, json=query).json()
+                id = query["id"]
+                print("deleting query " + str(id), flush=True)
+                extra_path = "/" + str(id)
+                response = requests.delete(
+                    path + extra_path, headers=headers, json=query
+                ).json()
                 # if response.status_code != 200:
                 # print('error deleting query', response)
 
@@ -198,78 +208,93 @@ class Redash:
             added then it is the same, otherwise it was refreshed from the server and we have new contents
         """
 
-        if 'redpush_id' not in visualization:
-            print('Visualization without tracking id, ignored')
+        if "redpush_id" not in visualization:
+            print("Visualization without tracking id, ignored")
             return
 
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/visualizations".format(self.url)
 
         # redash doesn't allow our extra properties, so remove them
-        redpush_id = visualization['redpush_id']
-        del visualization['redpush_id']
+        redpush_id = visualization["redpush_id"]
+        del visualization["redpush_id"]
 
         redpush_dashboards = []
-        if 'redpush_dashboards' in visualization:
-            redpush_dashboards = visualization['redpush_dashboards']
-            del visualization['redpush_dashboards']
+        if "redpush_dashboards" in visualization:
+            redpush_dashboards = visualization["redpush_dashboards"]
+            del visualization["redpush_dashboards"]
 
-        extra_path = ''
+        extra_path = ""
 
         if old_query != None:
             # we are updating so we need to find the id first
-            filtered = list(filter(lambda x: 'redpush_id' in x and x['redpush_id'] == redpush_id, old_query['visualizations']))
+            filtered = list(
+                filter(
+                    lambda x: "redpush_id" in x and x["redpush_id"] == redpush_id,
+                    old_query["visualizations"],
+                )
+            )
             if filtered:
                 if len(filtered) > 1:
-                    print('There are repeated visuals. Using the first')
-                old_id = filtered[0]['id']
-                extra_path = '/{}'.format(old_id)
+                    print("There are repeated visuals. Using the first")
+                old_id = filtered[0]["id"]
+                extra_path = "/{}".format(old_id)
 
-        if 'options' not in visualization:
-            visualization['options'] = {}
-        visualization['options']['redpush_id'] = redpush_id
-        response = requests.post(path + extra_path, headers=headers, json=visualization).json()
-        visual_id = response['id']  # the id we got from the just added visual
+        if "options" not in visualization:
+            visualization["options"] = {}
+        visualization["options"]["redpush_id"] = redpush_id
+        response = requests.post(
+            path + extra_path, headers=headers, json=visualization
+        ).json()
+        visual_id = response["id"]  # the id we got from the just added visual
 
         # if there is redpush_dashboard then lets check if we need to add to dashboard
         if redpush_dashboards:
             for widget_properties in redpush_dashboards:
                 # check if that dashboard is already in server, and if not create it
                 # check against name, as if deleted it would get a new slug
-                filtered_dash_list = list(filter(lambda x: x['name'] == widget_properties['name'], dash_list))
+                filtered_dash_list = list(
+                    filter(lambda x: x["name"] == widget_properties["name"], dash_list)
+                )
                 if filtered_dash_list:
                     if len(filtered_dash_list) > 1:
-                        print('More than one dashboard with the same id, error!!!')
+                        print("More than one dashboard with the same id, error!!!")
                     dash = filtered_dash_list[0]
                 else:
-                    print('Creating dashboard: ', widget_properties['name'])
+                    print("Creating dashboard: ", widget_properties["name"])
 
-                    dash = self.Create_Dashboard(widget_properties['name'])
+                    dash = self.Create_Dashboard(widget_properties["name"])
                     dash_list = self.Get_Dashboards()
 
                 # check if visual already in dashboard, and if not add it
                 need_to_add_widget = False
-                if 'widgets' in dash and dash['widgets']:
-                    #find the widget if already there
-                    filtered_widget_list = list(filter(lambda x: 'visualization' in x and x['visualization']['id'] == visual_id, dash['widgets']))
+                if "widgets" in dash and dash["widgets"]:
+                    # find the widget if already there
+                    filtered_widget_list = list(
+                        filter(
+                            lambda x: "visualization" in x
+                            and x["visualization"]["id"] == visual_id,
+                            dash["widgets"],
+                        )
+                    )
                     if not filtered_widget_list:
                         need_to_add_widget = True
                 else:
                     need_to_add_widget = True
 
                 # as we have the visualization from file, we need to put the id
-                visualization['id'] = visual_id
+                visualization["id"] = visual_id
                 row = 0
                 col = 0
-                if 'row' in widget_properties and widget_properties['row'] > 0:
-                    row = widget_properties['row']
-                if 'col' in widget_properties and widget_properties['col'] > 0:
-                    col = widget_properties['col']
+                if "row" in widget_properties and widget_properties["row"] > 0:
+                    row = widget_properties["row"]
+                if "col" in widget_properties and widget_properties["col"] > 0:
+                    col = widget_properties["col"]
                 if need_to_add_widget:
-                    self.Create_Widget(dash['id'], visualization, widget_properties)
+                    self.Create_Widget(dash["id"], visualization, widget_properties)
                 else:
                     first = filtered_widget_list[0]
-                    self.Update_Widget(dash['id'], first['id'], widget_properties)
+                    self.Update_Widget(dash["id"], first["id"], widget_properties)
 
         return dash_list  # In case we have refreshed it when adding a new one
 
@@ -277,17 +302,17 @@ class Redash:
         """
             Create a widget into a dashboard
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/widgets".format(self.url)
 
         position = self.get_Widget_position(widget_properties)
 
         widget = {
-            'visualization': visual,
-            'dashboard_id': dashboard_id,
-            'visualization_id': visual['id'],
-            'options': {'position': position},
-            'width': 1
+            "visualization": visual,
+            "dashboard_id": dashboard_id,
+            "visualization_id": visual["id"],
+            "options": {"position": position},
+            "width": 1,
         }
 
         response = requests.post(path, headers=headers, json=widget).json()
@@ -298,40 +323,36 @@ class Redash:
             that redash expects on the API
         """
         size = "medium"
-        if 'size' in widget_properties and len(widget_properties['size']) > 0:
-            size = widget_properties['size']
+        if "size" in widget_properties and len(widget_properties["size"]) > 0:
+            size = widget_properties["size"]
         col = 0
-        if 'col' in widget_properties and widget_properties['col'] > 0:
-            col = widget_properties['col']
+        if "col" in widget_properties and widget_properties["col"] > 0:
+            col = widget_properties["col"]
         row = 0
-        if 'row' in widget_properties and widget_properties['row'] > 0:
-            row = widget_properties['row']
+        if "row" in widget_properties and widget_properties["row"] > 0:
+            row = widget_properties["row"]
 
-        multiplierDef = {
-            'small': 2,
-            'medium': 3,
-            'large': 1
+        multiplierDef = {"small": 2, "medium": 3, "large": 1}
+
+        sizeXDef = {  # defining how big in X the widgets are
+            "small": 2,
+            "medium": 3,
+            "large": 6,  # max size in redash
         }
 
-        sizeXDef = {    # defining how big in X the widgets are
-            'small': 2,
-            'medium': 3,
-            'large': 6  # max size in redash
-        }
-
-        sizeYDef = {    # defining how big in X the widgets are
-            'small': 5,
-            'medium': 9,
-            'large': 12
+        sizeYDef = {  # defining how big in X the widgets are
+            "small": 5,
+            "medium": 9,
+            "large": 12,
         }
         multiplier = multiplierDef[size]
 
         position = {
-            'autoHeight': False,
-            'row': row,
-            'col': col * multiplier,
-            'sizeX': sizeXDef[size],
-            'sizeY': sizeYDef[size],
+            "autoHeight": False,
+            "row": row,
+            "col": col * multiplier,
+            "sizeX": sizeXDef[size],
+            "sizeY": sizeYDef[size],
         }
         return position
 
@@ -339,16 +360,16 @@ class Redash:
         """
             Update a widget already in a dashboard
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/widgets/{}".format(self.url, widget_id)
 
         position = self.get_Widget_position(widget_properties)
 
         widget = {
-            'dashboard_id': dashboard_id,
-            'options': {'position': position},
-            'text': '',
-            'width': 1
+            "dashboard_id": dashboard_id,
+            "options": {"position": position},
+            "text": "",
+            "width": 1,
         }
         response = requests.post(path, headers=headers, json=widget).json()
 
@@ -358,28 +379,51 @@ class Redash:
             For that it needs to first get the list and then get the details of each one
 
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/dashboards?page=1&page_size=100".format(self.url)
         dash_id_list = requests.get(path, headers=headers).json()
 
         path_id_template = "{}/api/dashboards/{}"
         dashboards = []
         # now we get the details
-        if 'results' not in dash_id_list: # in redash 5 the api has changed, they come in the results object
+        if (
+            "results" not in dash_id_list
+        ):  # in redash 5 the api has changed, they come in the results object
             return dashboards
-        for dash_id in dash_id_list['results']:
-            slug = dash_id['slug']
+        for dash_id in dash_id_list["results"]:
+            slug = dash_id["slug"]
             path_id = path_id_template.format(self.url, slug)
             dashboard = requests.get(path_id, headers=headers).json()
 
             # we need to filter some stuff, mostly inside the widgets
-            dashboard = self.filter_fields_blacklist(dashboard, ['updated_at', 'created_at', 'is_archived', 'is_draft', 'version', 'layout', 'can_edit', 'user_id'])
-            if 'widgets' in dashboard:
+            dashboard = self.filter_fields_blacklist(
+                dashboard,
+                [
+                    "updated_at",
+                    "created_at",
+                    "is_archived",
+                    "is_draft",
+                    "version",
+                    "layout",
+                    "can_edit",
+                    "user_id",
+                ],
+            )
+            if "widgets" in dashboard:
                 filtered_widgets = []
-                for widget in dashboard['widgets']:
-                    filt_widget = self.filter_fields_blacklist(widget, ['updated_at', 'created_at', 'is_archived', 'is_draft', 'version'])
+                for widget in dashboard["widgets"]:
+                    filt_widget = self.filter_fields_blacklist(
+                        widget,
+                        [
+                            "updated_at",
+                            "created_at",
+                            "is_archived",
+                            "is_draft",
+                            "version",
+                        ],
+                    )
                     filtered_widgets.append(filt_widget)
-                dashboard['widgets'] = filtered_widgets
+                dashboard["widgets"] = filtered_widgets
             dashboards.append(dashboard)
 
         return dashboards
@@ -390,16 +434,20 @@ class Redash:
             Warning, this function doesn't check if the dashboard with that name is already created, and if it is
             it will create a duplicate
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/dashboards".format(self.url)
 
-        dash = {'name': name}
+        dash = {"name": name}
         response = requests.post(path, headers=headers, json=dash).json()
         # as we want it published, we need a second request to update it
-        response['is_draft'] = False
-        update = self.filter_fields_blacklist(response, ['updated_at', 'created_at', 'version'])
+        response["is_draft"] = False
+        update = self.filter_fields_blacklist(
+            response, ["updated_at", "created_at", "version"]
+        )
 
-        response = requests.post(path + '/' + str(response['id']), headers=headers, json=update).json()
+        response = requests.post(
+            path + "/" + str(response["id"]), headers=headers, json=update
+        ).json()
         # This call returns an error but still makes the change :)
         return update
 
@@ -410,21 +458,41 @@ class Redash:
             it also does the hack of moving the redpush_id from the options to the top level of the query
         """
         new_query = {}
-        for valid_key in ['name', 'description', 'query', 'id', 'data_source_id', 'options', 'visualizations']:
+        for valid_key in [
+            "name",
+            "description",
+            "query",
+            "id",
+            "data_source_id",
+            "options",
+            "visualizations",
+        ]:
             if valid_key in query:
-                if valid_key == 'visualizations':
+                if valid_key == "visualizations":
                     # if there is a visualizations key, we need to do some cleanup also
-                    new_query[valid_key] = list(map(lambda i: self.filter_fields_blacklist(i, ['created_at', 'updated_at']), query[valid_key]))
-                    for visualization in new_query['visualizations']:
-                        if 'options' in visualization and 'redpush_id' in visualization['options']:
-                            redpush_id = visualization['options']['redpush_id']
-                            del visualization['options']['redpush_id']
-                            visualization['redpush_id'] = redpush_id
-                elif valid_key == 'options':
+                    new_query[valid_key] = list(
+                        map(
+                            lambda i: self.filter_fields_blacklist(
+                                i, ["created_at", "updated_at"]
+                            ),
+                            query[valid_key],
+                        )
+                    )
+                    for visualization in new_query["visualizations"]:
+                        if (
+                            "options" in visualization
+                            and "redpush_id" in visualization["options"]
+                        ):
+                            redpush_id = visualization["options"]["redpush_id"]
+                            del visualization["options"]["redpush_id"]
+                            visualization["redpush_id"] = redpush_id
+                elif valid_key == "options":
                     # check if we have the redpush_id and if we do put it in the query
-                    if 'redpush_id' in query['options']:
-                        new_query['redpush_id'] = query['options']['redpush_id']
-                    new_query[valid_key] = self.filter_fields_blacklist(query[valid_key], ['redpush_id'])  # we don't want our internal id there
+                    if "redpush_id" in query["options"]:
+                        new_query["redpush_id"] = query["options"]["redpush_id"]
+                    new_query[valid_key] = self.filter_fields_blacklist(
+                        query[valid_key], ["redpush_id"]
+                    )  # we don't want our internal id there
                 else:
                     new_query[valid_key] = query[valid_key]
 
@@ -456,8 +524,8 @@ class Redash:
             find a query in a list of queries that has the given redpush_id 
         """
         for query in queries:
-            if 'redpush_id' in query:
-                if query['redpush_id'] == redpush_id:
+            if "redpush_id" in query:
+                if query["redpush_id"] == redpush_id:
                     return query
 
     def Create_Users(self, users):
@@ -465,7 +533,7 @@ class Redash:
             Tries to create in Redash a list of users. users is a list of dicts with `name` and `email`
             If the user is already created then it will silently fail
         """
-        headers = {'Authorization': 'Key {}'.format(self.api_key)}
+        headers = {"Authorization": "Key {}".format(self.api_key)}
         path = "{}/api/users".format(self.url)
 
         for user in users:

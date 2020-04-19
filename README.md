@@ -146,6 +146,13 @@ If you want to to start over the server, you can:
 3. `rm -rf postgres-data/` to remove the data of the dbs
 4. Create everything again
 
+### Format source code
+
+```
+$ pip install black
+$ black redpush
+```
+
 ## Tricks used
 
 Redash API is created to be used from a web UI tool, not from a tool like this. Some hacks are created for it to work. That's the `redpush_id` that was mentioned before. Those are also stored inside the redash server, but as the server doesn't allow to add new fields to the objects (rightfully so) we found that the `options` property it is a key/value anything goes. So we abuse it to store there the internal IDs that redpush uses to match the objects. The tool also when exporting/importing takes care of adding/removing it from the `options` and putting it as a property of the object.
