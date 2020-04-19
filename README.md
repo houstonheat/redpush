@@ -122,6 +122,18 @@ Of course you might need to change the URL to the correct one (the above works i
 
 The easiest way to use this project is using docker and virtualenv.
 
+### Using virtualenv
+
+```
+$ python3 -m venv ./venv/
+$ source venv/bin/activate
+$ pip install -e .
+$ rehash
+$ redpush --help
+```
+
+### Using Docker
+
 You can easily run a redash server locally using docker:
 
 1. `docker-compose up -d`
