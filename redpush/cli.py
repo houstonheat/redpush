@@ -2,8 +2,10 @@
     Tool to manage the queries, graphs and dashboards in a redash server from yaml definitions.
     Treating all of them as code, so you can version control them as you should :-)
 """
+import os
 import click
 import requests
+from slugify import slugify
 import csv
 from ruamel import yaml
 import difflib
@@ -53,15 +55,59 @@ def cli():
 @click.option('--redash-url',envvar='REDASH_URL')
 @click.option('--api-key',envvar='REDASH_KEY', help="API Key")
 @click.option('-o', '--out-file', help="File to store the queries", type=str)
-def dump(redash_url, api_key, out_file):
-    if out_file is None:
-        click.echo('No out file provided')
-        return
+@click.option('--split-file', is_flag=True, help="Split dump to separate Yaml files")
+@click.option('-p', '--out-path', help="Folder to store Yaml files", type=str)
+@click.option('--include-dashboards', is_flag=True, help="Dump include Dashboard")
+def dump(redash_url, api_key, out_file, split_file, out_path, include_dashboards):
+    if split_file:
+        if out_path is None:
+            click.echo('No out path provided')
+            return
+    else:
+        if out_file is None:
+            click.echo('No out file provided')
+            return
+
     server = redash.Redash(redash_url, api_key)
     queries = server.Get_Queries()
     queries = server.Get_Full_Queries(queries)
-    
-    save_yaml(queries, out_file)
+
+    if split_file:
+        queries_path = os.path.join(out_path, 'queries')
+        if not os.path.exists(queries_path):
+            os.makedirs(queries_path)
+
+        for item in queries:
+            save_yaml(
+                item,
+                os.path.join(
+                    queries_path,
+                    '%s-%s.yaml' % (
+                        item['id'],
+                        slugify(item['name'])
+                    )
+                )
+            )
+
+        if include_dashboards:
+            dashboards_path = os.path.join(out_path, 'dashboards')
+            if not os.path.exists(dashboards_path):
+                os.makedirs(dashboards_path)
+
+            for item in server.Get_Dashboards():
+                save_yaml(
+                    item,
+                    os.path.join(
+                        dashboards_path,
+                        '%s-%s.yaml' % (
+                            item['id'],
+                            slugify(item['name'])
+                        )
+                    )
+                )
+
+    else:
+        save_yaml(queries, out_file)
 
 @cli.command()
 @click.option('--redash-url',envvar='REDASH_URL')
