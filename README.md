@@ -1,5 +1,4 @@
 # redpush
-Tool to manage queries a dashboards in Redash as source code.
 
 Tool to manage queries a dashboards in [Redash](https://redash.io/) as source code.
 
