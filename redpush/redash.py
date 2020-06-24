@@ -15,6 +15,9 @@ class Redash:
         self.url = url
         self.api_key = api_key
 
+    def getMaxOfList(self, list: list):
+        return max(list)
+
     def Get_Queries(self, dontfilter=False):
         """
             Get all queries from the given redash server
@@ -28,13 +31,30 @@ class Redash:
         has_more = True
         page = 1
         while has_more:
-            response = requests.get(path, headers=headers, params={"page": page}).json()
+            response = requests.get(path, headers=headers, params={"page": page, "order": "created_at"}).json()
             queries.extend(response["results"])
             has_more = page * response["page_size"] + 1 <= response["count"]
             page += 1
 
         if not dontfilter:
             queries = self.filter_fields_query_list(queries)
+        return queries
+
+    def Get_Full_Query_By_ID(self, id: int):
+        """
+            Get single query from the given redash server
+        """
+        queries = []
+        headers = {"Authorization": "Key {}".format(self.api_key)}
+        path = "{}/api/queries".format(self.url)
+
+        response = requests.get(
+            path + "/" + str(id), headers=headers
+        ).json()
+        full_query = self.filter_fields_query(response)
+        if full_query:
+            queries.append(full_query)
+
         return queries
 
     def Get_Full_Queries(self, queries):
@@ -53,7 +73,8 @@ class Redash:
                 path + "/" + str(query["id"]), headers=headers
             ).json()
             full_query = self.filter_fields_query(response)
-            full_queries.append(full_query)
+            if full_query:
+                full_queries.append(full_query)
         return full_queries
 
     def Put_Queries(self, old_queries, new_queries):

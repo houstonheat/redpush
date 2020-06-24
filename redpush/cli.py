@@ -39,7 +39,7 @@ def sort_queries(queries):
     """
         Sort the list of queries so we can compare them easily afterwards
     """
-    # First short queries per id
+    # First sort queries per id
     queries = sorted(queries, key=itemgetter("redpush_id"))
     # then each query, sort the properties alphabetically
     sorted_keys = []
@@ -63,7 +63,9 @@ def cli():
 @click.option("--split-file", is_flag=True, help="Split dump to separate Yaml files")
 @click.option("-p", "--out-path", help="Folder to store Yaml files", type=str)
 @click.option("--include-dashboards", is_flag=True, help="Dump include Dashboard")
-def dump(redash_url, api_key, out_file, split_file, out_path, include_dashboards):
+@click.option("--id", help="Dump single query by ID", type=int)
+@click.option("--auto-redpush-id", is_flag=True, help="Add auto incremented 'redpush_id' field to query, if it's not exist. Based on max 'redpush_id' value in server queries")
+def dump(redash_url, api_key, out_file, split_file, out_path, include_dashboards, id, auto_redpush_id):
     if split_file:
         if out_path is None:
             click.echo("No out path provided")
@@ -74,15 +76,51 @@ def dump(redash_url, api_key, out_file, split_file, out_path, include_dashboards
             return
 
     server = redash.Redash(redash_url, api_key)
-    queries = server.Get_Queries()
-    queries = server.Get_Full_Queries(queries)
+
+    if id:
+        queries = server.Get_Queries()
+        full_queries = server.Get_Full_Query_By_ID(id)
+    else:
+        queries = server.Get_Queries()
+        full_queries = server.Get_Full_Queries(queries)
+
+    if not full_queries:
+        print("Queries not found, exit")
+        return
+
+    if auto_redpush_id: 
+        redpush_ids_list = [query["redpush_id"] for query in queries if "redpush_id" in query]
+        if not redpush_ids_list:
+            max_redpush_id = 0
+        else:
+            max_redpush_id = server.getMaxOfList(redpush_ids_list)
+
+        for query in full_queries:
+            if "redpush_id" not in query:
+                max_redpush_id += 1
+                query["redpush_id"] = max_redpush_id
+
+                visualizations = query["visualizations"]
+                visualizations_ids_list = [element["redpush_id"] for element in visualizations if "redpush_id" in element]
+                element_redpush_id = 0
+                if not element_redpush_id:
+                    element_redpush_id = 0
+                else:
+                    element_redpush_id = server.getMaxOfList(visualizations_ids_list)
+
+                for element in visualizations:
+                    if "redpush_id" not in element:
+                        element_redpush_id += 1
+                        element["redpush_id"] = element_redpush_id
+
+        full_queries = sort_queries(full_queries)
 
     if split_file:
         queries_path = os.path.join(out_path, "queries")
         if not os.path.exists(queries_path):
             os.makedirs(queries_path)
 
-        for item in queries:
+        for item in full_queries:
             save_yaml(
                 item,
                 os.path.join(
@@ -105,7 +143,7 @@ def dump(redash_url, api_key, out_file, split_file, out_path, include_dashboards
                 )
 
     else:
-        save_yaml(queries, out_file)
+        save_yaml(full_queries, out_file)
 
 
 @cli.command()
