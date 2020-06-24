@@ -9,7 +9,8 @@ setup(
     install_requires=[
         'click==6.7',
         'requests==2.18.4',
-        'ruamel.yaml==0.15.37'
+        'ruamel.yaml==0.16.5',
+        'python-slugify==4.0.0'
     ],
     entry_points='''
         [console_scripts]
